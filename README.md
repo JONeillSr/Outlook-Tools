@@ -1,24 +1,31 @@
 # Outlook PowerShell Tools
 
-A collection of PowerShell scripts for automating Microsoft Outlook tasks and email management.
+A collection of PowerShell scripts for automating Microsoft Outlook tasks, mailbox management, and email communications.
 
 ## Available Tools
 
 ### 1. Outlook Tools
 Located in `/outlooktools`
 
-A comprehensive toolkit for managing Outlook folders and extracting email data. Features include:
+A toolkit for managing and analyzing Outlook mailbox data:
 - Recursive folder listing with item counts
-- Email address extraction
+- Email address extraction from folders
 - Detailed folder analysis
-- CSV export capabilities
+- CSV export of mailbox structure
+- Support for multiple mailboxes
 
 [View Outlook Tools Documentation](./outlooktools/README.md)
 
 ### 2. Send Email from Outlook
 Located in `/sendemailfromoutlook`
 
-A PowerShell script for automated email sending through Outlook.
+An automated email sending solution that combines Word templates with CSV recipient lists:
+- Personalized email sending using Word templates
+- Mail merge functionality with CSV data
+- HTML formatting preservation
+- Support for embedded images
+- Comprehensive logging system
+- Bulk email processing with throttling protection
 
 [View Send Email Documentation](./sendemailfromoutlook/README.md)
 
@@ -27,7 +34,9 @@ A PowerShell script for automated email sending through Outlook.
 ### Prerequisites
 - Windows PowerShell 5.1 or later
 - Microsoft Outlook (Desktop version)
+- Microsoft Word (Required for sendemailfromoutlook)
 - Appropriate permissions to run PowerShell scripts in your environment
+- Valid Outlook email account configuration
 
 ### Installation
 1. Clone this repository:
@@ -35,24 +44,50 @@ A PowerShell script for automated email sending through Outlook.
 git clone https://github.com/yourusername/outlook-tools.git
 ```
 
-2. Navigate to the tool directory you want to use:
+2. Navigate to the desired tool directory:
 ```powershell
 cd outlook-tools/outlooktools
 # or
 cd outlook-tools/sendemailfromoutlook
 ```
 
-3. Follow the specific installation instructions in each tool's README.
+3. Unblock the PowerShell scripts if needed:
+```powershell
+Unblock-File -Path .\outlooktools.ps1
+# or
+Unblock-File -Path .\sendemailfromoutlook.ps1
+```
 
-## General Usage
+4. Set appropriate PowerShell execution policy:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
 
-Each tool has its own specific usage instructions and parameters. Please refer to the individual README files in each tool's directory for detailed documentation.
+## Common Features Across Tools
 
-### Security Note
+### Outlook Integration
+Both tools:
+- Work with running or closed instances of Outlook
+- Use COM object interaction
+- Handle Outlook security prompts
+- Provide proper cleanup of COM objects
+
+### Data Export
+Both tools export data to CSV format:
+- outlooktools: Mailbox structure and email extraction
+- sendemailfromoutlook: Logging and operation records
+
+### Logging
+- outlooktools: Logs folder operations and email extraction
+- sendemailfromoutlook: Detailed logging in %LOCALAPPDATA%\PowerShell\logs
+
+## Security Considerations
+
 These scripts interact with Outlook using COM objects. Depending on your organization's security settings, you may need to:
-- Unblock the downloaded PS1 files
+- Unblock downloaded PS1 files
 - Set appropriate PowerShell execution policies
 - Handle Outlook security prompts
+- Ensure proper email account permissions
 
 ## Contributing
 
@@ -63,6 +98,12 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 2. Update documentation for any modified functions
 3. Test your changes thoroughly
 4. Follow PowerShell best practices
+5. Include appropriate error handling
+6. Add logging for new functionality
+
+## Authors
+- Original Author: John A. O'Neill Sr.
+- Last Updated: January 8, 2025
 
 ## License
 
@@ -85,5 +126,8 @@ outlook-tools/
 
 If you encounter any issues or have questions:
 1. Check the specific tool's README for common issues
-2. Open an issue in the GitHub repository
-3. Provide relevant details about your environment and the error encountered
+2. Review the log files for error details
+3. Verify prerequisites are met
+4. Run scripts with -Verbose flag for additional debugging information
+5. Open an issue in the GitHub repository
+6. Provide relevant details about your environment and the error encountered
