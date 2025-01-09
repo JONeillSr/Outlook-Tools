@@ -27,7 +27,7 @@ An automated email sending solution that combines Word templates with CSV recipi
 - Comprehensive logging system
 - Bulk email processing with throttling protection
 
-[View Send Email Documentation](./sendemailfromoutlook/README.md)
+[View Send Email Documentation](SendEmailFromOutlook/readme.md)
 
 ## Getting Started
 
