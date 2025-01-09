@@ -26,6 +26,7 @@ An automated email sending solution that combines Word templates with CSV recipi
 - Support for embedded images
 - Comprehensive logging system
 - Bulk email processing with throttling protection
+- Sends emails individually for a more personal interaction and to prevent recipients from harvesting the addresses of other recipients
 
 [View Send Email Documentation](SendEmailFromOutlook/readme.md)
 
