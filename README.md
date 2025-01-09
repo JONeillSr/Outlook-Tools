@@ -14,7 +14,7 @@ A toolkit for managing and analyzing Outlook mailbox data:
 - CSV export of mailbox structure
 - Support for multiple mailboxes
 
-[View Outlook Tools Documentation](./outlooktools/README.md)
+[View Outlook Tools Documentation](OutlookTools/readme.md)
 
 ### 2. Send Email from Outlook
 Located in `/sendemailfromoutlook`
@@ -27,7 +27,7 @@ An automated email sending solution that combines Word templates with CSV recipi
 - Comprehensive logging system
 - Bulk email processing with throttling protection
 
-[View Send Email Documentation](./sendemailfromoutlook/README.md)
+[View Send Email Documentation](SendEmailFromOutlook/readme.md)
 
 ## Getting Started
 
@@ -41,7 +41,7 @@ An automated email sending solution that combines Word templates with CSV recipi
 ### Installation
 1. Clone this repository:
 ```powershell
-git clone https://github.com/yourusername/outlook-tools.git
+git clone https://github.com/JONeillSr/outlook-tools.git
 ```
 
 2. Navigate to the desired tool directory:
@@ -120,6 +120,8 @@ outlook-tools/
 └── sendemailfromoutlook/
     ├── sendemailfromoutlook.ps1
     └── README.md
+    └── testinput.csv
+    └── Sample.docx
 ```
 
 ## Support
