@@ -1,7 +1,6 @@
 # Sample Email Template
 
-Below is a sample template that demonstrates the personalization capabilities of the sendemailfromoutlook script. Save this content as `Sample.docx` to use with the script.
-
+Below is a sample template that demonstrates the personalization capabilities of the sendemailfromoutlook script. There is a formatted version of this example in the file sample.docx.
 ```
 Hi [GivenName],
 
