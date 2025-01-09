@@ -1,80 +1,89 @@
-# OutlookTools
+# Outlook PowerShell Tools
 
-A PowerShell toolkit for managing and extracting data from Microsoft Outlook mailboxes.
+A collection of PowerShell scripts for automating Microsoft Outlook tasks and email management.
 
-## Key Features
+## Available Tools
 
-### Functions
-- **Initialize-Outlook**: Creates and initializes the Outlook COM object
-- **List-OutlookFolders**: Recursively lists all folders in the mailbox with item counts
-- **Extract-OutlookEmails**: Extracts names and email addresses from a specific folder
+### 1. Outlook Tools
+Located in `/outlooktools`
 
-### Parameters
-- `-ListFolders`: Lists all folders and saves to a CSV file
-- `-ExtractEmails`: Extracts emails from a specific folder and saves to a CSV file
-- `-FolderPath`: Specifies the folder path for email extraction
-- `-MailboxName`: Specifies the mailbox name (optional)
+A comprehensive toolkit for managing Outlook folders and extracting email data. Features include:
+- Recursive folder listing with item counts
+- Email address extraction
+- Detailed folder analysis
+- CSV export capabilities
 
-## Usage
+[View Outlook Tools Documentation](./outlooktools/README.md)
 
-1. Save the script as `OutlookScript.ps1`
-2. Run using the following command patterns:
+### 2. Send Email from Outlook
+Located in `/sendemailfromoutlook`
 
-### List folders in mailbox:
+A PowerShell script for automated email sending through Outlook.
+
+[View Send Email Documentation](./sendemailfromoutlook/README.md)
+
+## Getting Started
+
+### Prerequisites
+- Windows PowerShell 5.1 or later
+- Microsoft Outlook (Desktop version)
+- Appropriate permissions to run PowerShell scripts in your environment
+
+### Installation
+1. Clone this repository:
 ```powershell
-.\OutlookScript.ps1 -GetMailboxFolders -MailboxName "Mailbox - John Doe" -OutputFolder "C:\Reports"
+git clone https://github.com/yourusername/outlook-tools.git
 ```
 
-### Extract email recipient addresses and names:
+2. Navigate to the tool directory you want to use:
 ```powershell
-.\OutlookScript.ps1 -GetEmailsFromFolder -FolderPath "Inbox\MyFolder" -MailboxName "Mailbox - John Doe" -OutputFolder "D:\Exports"
+cd outlook-tools/outlooktools
+# or
+cd outlook-tools/sendemailfromoutlook
 ```
 
-### Use default output to Desktop:
-```powershell
-.\OutlookScript.ps1 -GetEmailsFromFolder -FolderPath "Inbox\MyFolder" -MailboxName "Mailbox - John Doe"
+3. Follow the specific installation instructions in each tool's README.
+
+## General Usage
+
+Each tool has its own specific usage instructions and parameters. Please refer to the individual README files in each tool's directory for detailed documentation.
+
+### Security Note
+These scripts interact with Outlook using COM objects. Depending on your organization's security settings, you may need to:
+- Unblock the downloaded PS1 files
+- Set appropriate PowerShell execution policies
+- Handle Outlook security prompts
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+### Guidelines
+1. Maintain consistent formatting with the existing codebase
+2. Update documentation for any modified functions
+3. Test your changes thoroughly
+4. Follow PowerShell best practices
+
+## License
+
+[MIT License](LICENSE)
+
+## Project Structure
+```
+outlook-tools/
+│
+├── outlooktools/
+│   ├── outlooktools.ps1
+│   └── README.md
+│
+└── sendemailfromoutlook/
+    ├── sendemailfromoutlook.ps1
+    └── README.md
 ```
 
-## Output Files
+## Support
 
-### OutlookFolderList.csv
-Contains folder listing with the following columns:
-- **Mailbox**: The mailbox name (e.g., artclown@somedomainsomewhere.com)
-- **FolderPath**: The path to the folder within the mailbox (e.g., \Inbox\Blah)
-- **ItemCount**: The number of items in the folder
-
-### ExtractedEmails.csv
-Contains extracted email addresses and names.
-
-### File Handling
-If an output file already exists, the script will:
-1. Prompt for overwrite confirmation
-2. If declined, create a new file with timestamp (e.g., OutlookFolderList_20250108123000.csv)
-
-## Outlook Integration
-
-The script uses the Outlook COM Object and can work with both running and closed instances of Outlook:
-
-- If Outlook is running, the script connects to the existing instance
-- If Outlook is closed, the script launches it automatically in the background
-
-### Important Considerations
-
-1. **During Operation**
-   - You can continue working with Outlook while the script runs
-   - Avoid modifying emails in the target folder during script execution
-
-2. **Performance**
-   - Large mailboxes or folders may temporarily impact Outlook performance
-   - Consider closing resource-intensive operations before running the script
-
-3. **Security**
-   - Organization settings may trigger security prompts when accessing mailbox data
-   - These prompts are normal security measures
-
-4. **Best Practices**
-   - Close other heavy tasks or large folder operations in Outlook
-   - This minimizes potential performance or locking issues
-
-## PowerShell Help
-The script includes comprehensive PowerShell help comments for easy reference and maintenance.
+If you encounter any issues or have questions:
+1. Check the specific tool's README for common issues
+2. Open an issue in the GitHub repository
+3. Provide relevant details about your environment and the error encountered
