@@ -49,8 +49,7 @@ P.S. If you enjoyed our session, feel free to share your thoughts—we'd love to
 
 ## Template Notes
 
-1. Save this template as a Word document (.docx)
-2. The `[GivenName]` placeholder will be automatically replaced with each recipient's first name from the CSV
+1. The `[GivenName]` placeholder will be automatically replaced with each recipient's first name from the CSV
 3. Maintain the formatting (bold text, paragraphs) in the Word document
 4. You can customize:
    - Company/personal branding
@@ -61,9 +60,8 @@ P.S. If you enjoyed our session, feel free to share your thoughts—we'd love to
 
 ## Using the Template
 
-1. Create a new Word document
-2. Copy the above content into it
-3. Apply desired formatting (fonts, colors, spacing)
+1. Copy the existing sample.docx Word document
+2. Apply desired formatting (fonts, colors, spacing)
 4. Save as `Sample.docx`
 5. Use with the script:
 ```powershell
