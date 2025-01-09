@@ -50,13 +50,13 @@ P.S. If you enjoyed our session, feel free to share your thoughts—we'd love to
 ## Template Notes
 
 1. The `[GivenName]` placeholder will be automatically replaced with each recipient's first name from the CSV
-3. Maintain the formatting (bold text, paragraphs) in the Word document
-4. You can customize:
+3. You can customize:
    - Company/personal branding
    - Social media links
    - Contact information
    - Special offers and dates
    - Professional titles
+4. Don't hesitate to create a from scratch Word .docx file as your template!
 
 ## Using the Template
 
