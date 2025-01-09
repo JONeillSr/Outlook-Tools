@@ -14,7 +14,7 @@ A toolkit for managing and analyzing Outlook mailbox data:
 - CSV export of mailbox structure
 - Support for multiple mailboxes
 
-[View Outlook Tools Documentation](./outlooktools/README.md)
+[View Outlook Tools Documentation](OutlookTools/readme.md)
 
 ### 2. Send Email from Outlook
 Located in `/sendemailfromoutlook`
