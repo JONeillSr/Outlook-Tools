@@ -41,7 +41,7 @@ An automated email sending solution that combines Word templates with CSV recipi
 ### Installation
 1. Clone this repository:
 ```powershell
-git clone https://github.com/yourusername/outlook-tools.git
+git clone https://github.com/JONeillSr/outlook-tools.git
 ```
 
 2. Navigate to the desired tool directory:
@@ -120,6 +120,8 @@ outlook-tools/
 └── sendemailfromoutlook/
     ├── sendemailfromoutlook.ps1
     └── README.md
+    └── testinput.csv
+    └── Sample.docx
 ```
 
 ## Support
