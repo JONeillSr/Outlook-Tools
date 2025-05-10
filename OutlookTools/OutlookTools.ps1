@@ -13,6 +13,9 @@
 .PARAMETER GetEmailsFromFolder
     Call this parameter to retrieve email addresses from a specified folder.
 
+.PARAMETER GetToEmailsFromFolder
+    Call this parameter to retrieve recipient (To) email addresses from a specified folder.
+
 .PARAMETER FolderPath
     Specify the folder path for the GetEmailsFromFolder function. (Required for email retrieval).
 
@@ -32,6 +35,11 @@
     .\OutlookScript.ps1 -GetEmailsFromFolder -FolderPath "Inbox\MyFolder" -MailboxName "Mailbox - Art Clown" -OutputFolder "D:\Exports"
 
     Retrieves email addresses from the folder "Inbox\MyFolder" in the mailbox "Mailbox - Art Clown", then saves the output in the "D:\Exports" folder.
+
+.EXAMPLE
+    c
+
+    Retrieves recipient email addresses from the folder "Inbox\MyFolder" in the mailbox "Mailbox - Art Clown", then saves the output in the "D:\Exports" folder.
 
 .EXAMPLE
     .\OutlookScript.ps1 -GetEmailsFromFolder -FolderPath "Inbox\MyFolder" -MailboxName "Mailbox - Art Clown"
@@ -68,6 +76,7 @@
 param (
     [switch]$GetMailboxFolders,
     [switch]$GetEmailsFromFolder,
+    [switch]$GetToEmailsFromFolder,
     [string]$FolderPath,
     [string]$MailboxName,
     [string]$OutputFolder = "$env:USERPROFILE\Desktop" # Default to Desktop
@@ -261,6 +270,79 @@ function Get-EmailsFromFolder {
     # Return the extracted emails
     return $emails
 }
+# Function to retrieve "To" email addresses from a folder
+function Get-ToEmailsFromFolder {
+    param (
+        [Parameter(Mandatory = $true)]
+        [object]$Namespace,
+        [string]$FolderPath,
+        [string]$MailboxName
+    )
+
+    # Get the root folder of the specified mailbox
+    $rootFolder = $Namespace.Folders.Item($MailboxName)
+    if (-not $rootFolder) {
+        Write-Error "Mailbox '$MailboxName' not found."
+        Write-ToLog -message "Mailbox '$MailboxName' not found."
+        return
+    }
+
+    # Navigate to the target folder
+    $folder = $rootFolder
+    $folderNames = $FolderPath.TrimStart("\").Split("\")
+    if ($folderNames[0] -eq $MailboxName) {
+        Write-Verbose "Skipping mailbox name: '$MailboxName'"
+        Write-ToLog -message "Skipping mailbox name: '$MailboxName'"
+        $folderNames = $folderNames[1..$folderNames.Length] # Skip the mailbox name
+    }
+
+    foreach ($folderName in $folderNames) {
+        Write-Verbose "Looking for folder: '$folderName' in '$($folder.Name)'"
+        Write-ToLog -message "Looking for folder: '$folderName' in '$($folder.Name)'"
+        try {
+            $folder = $folder.Folders.Item($folderName)
+            if (-not $folder) {
+                Write-Error "Folder '$folderName' not found in path '$FolderPath'."
+                Write-ToLog -message "Folder '$folderName' not found in path '$FolderPath'."
+                return
+            }
+        } catch {
+            Write-Error "Folder '$folderName' not found or inaccessible in path '$FolderPath'."
+            Write-ToLog -message "Folder '$folderName' not found or inaccessible in path '$FolderPath'."
+            return
+        }
+    }
+
+    # Extract "To" email addresses
+    $emails = @()
+    foreach ($item in $folder.Items) {
+        if ($item.Class -eq 43) { # 43 = MailItem
+            # Process all recipients in the To field
+            if ($item.To) {
+                $recipients = $item.Recipients
+                foreach ($recipient in $recipients) {
+                    # Only process recipients that are in the To field (not CC or BCC)
+                    if ($recipient.Type -eq 1) { # 1 = olTo (To recipient type)
+                        $emailAddress = $recipient.Address
+                        $displayName = $recipient.Name
+                        
+                        # Add to the result array if not already present
+                        if ($emailAddress -and -not ($emails | Where-Object { $_.Email -eq $emailAddress })) {
+                            $emails += [PSCustomObject]@{
+                                Name  = $displayName
+                                Email = $emailAddress
+                            }
+                            Write-ToLog -message "Exporting To recipient data for $emailAddress"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    # Return the extracted "To" emails
+    return $emails
+}
 
 # Main Script Logic
 New-Log
@@ -297,4 +379,19 @@ if ($GetEmailsFromFolder) {
     $emails | Export-Csv -Path $outputFile -NoTypeInformation
     Write-Host "Email addresses saved to $outputFile" -ForegroundColor Green
     Write-ToLog -message "Email addresses saved to $outputFile"
+}
+
+if ($GetToEmailsFromFolder) {
+    if (-not $FolderPath) {
+        Write-Error "The FolderPath parameter is required for GetToEmailsFromFolder."
+        Write-ToLog -message "The FolderPath parameter is required for GetToEmailsFromFolder."
+        return
+    }
+
+    $outputFile = Join-Path -Path $OutputFolder -ChildPath "ExtractedToEmails.csv"
+    $outputFile = Resolve-OutputFile -FilePath $outputFile
+    $emails = Get-ToEmailsFromFolder -Namespace $namespace -FolderPath $FolderPath -MailboxName $MailboxName
+    $emails | Export-Csv -Path $outputFile -NoTypeInformation
+    Write-Host "To email addresses saved to $outputFile" -ForegroundColor Green
+    Write-ToLog -message "To email addresses saved to $outputFile"
 }
