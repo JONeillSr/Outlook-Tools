@@ -22,30 +22,9 @@
     Path to the CSV file containing recipient information.
     The CSV must have at least two columns: 'Name' and 'Email'.
 
-.PARAMETER FromAddress
-    Optional. The email address to use as the sender. If not specified, 
-    uses the default Outlook account. The specified address must be configured 
-    in Outlook as a valid sending account.
-
-.PARAMETER AttachmentPath
-    Optional. Path to a file that will be attached to each email sent.
-    If specified, the file must exist and will be attached to every email.
-
 .EXAMPLE
     .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv"
-    Sends personalized emails to all recipients in Input.csv using the template from Sample.docx with the default sender address.
-
-.EXAMPLE
-    .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv" -FromAddress "JONeillSr@azureinnovators.com"
-    Sends emails from the specified address instead of the default Outlook account.
-
-.EXAMPLE
-    .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv" -AttachmentPath "C:\Temp\Brochure.pdf"
-    Sends emails with the specified PDF file attached to each email.
-
-.EXAMPLE
-    .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv" -FromAddress "JONeillSr@azureinnovators.com" -AttachmentPath "C:\Temp\Brochure.pdf"
-    Sends emails from a custom address with an attachment included.
+    Sends personalized emails to all recipients in Input.csv using the template from Sample.docx.
 
 .EXAMPLE
     .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv" -Verbose
@@ -54,9 +33,9 @@
 .NOTES
     Author: John A. O'Neill Sr.
     Date: 01/08/2025
-    Version: 1.2
+    Version: 1.1
     Change Date: 01/08/2025
-    Change Purpose: Added FromAddress parameter to specify custom sender address
+    Change Purpose: Enhanced formatting support and logging
 
     Prerequisites:
     - Microsoft Office 2016 or later
@@ -73,16 +52,6 @@
         Name,GivenName,Surname,Email
         Art Clown,Art,Clown,arttheclown@somedomainsomewhere.com
 
-    From Address Notes:
-    - The FromAddress parameter must be an email address configured in your Outlook
-    - If the address is not configured in Outlook, the email will fail to send
-    - If FromAddress is not specified, the default Outlook account will be used
-
-    Attachment Notes:
-    - The AttachmentPath parameter must point to an existing file
-    - The same attachment will be included in every email sent
-    - Large attachments may cause slower sending or delivery issues
-
 .LINK
     https://learn.microsoft.com/en-us/office/vba/api/overview/outlook
 
@@ -93,6 +62,7 @@
     None. This script does not generate any output objects.
 #>
 
+[CmdletBinding()]
 param(
     [Parameter(Mandatory=$true,
     HelpMessage="Path to the Word document template")]
@@ -104,15 +74,7 @@ param(
     
     [Parameter(Mandatory=$true,
     HelpMessage="Path to the CSV file containing recipient information")]
-    [string]$InputCSV,
-    
-    [Parameter(Mandatory=$false,
-    HelpMessage="Email address to use as sender (must be configured in Outlook)")]
-    [string]$FromAddress = $null,
-    
-    [Parameter(Mandatory=$false,
-    HelpMessage="Path to file that will be attached to each email")]
-    [string]$AttachmentPath = $null
+    [string]$InputCSV
 )
 
 # Initial variables defined at script scope
@@ -147,34 +109,7 @@ Function Write-ToLog {
     $logEntryStr = "$time`t" + $message
     $logEntryStr | Out-File -Append $script:logFilePath -Width 400
 }
-function Test-CSVFormat {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$CSVPath
-    )
-    
-    try {
-        $csv = Import-Csv $CSVPath
-        $requiredColumns = @('Name', 'GivenName', 'Surname', 'Email')
-        
-        foreach ($column in $requiredColumns) {
-            if ($csv[0].PSObject.Properties.Name -notcontains $column) {
-                throw "CSV file is missing required column: $column"
-            }
-        }
-        
-        $message = "CSV format validation passed"
-        Write-Verbose $message
-        Write-ToLog $message
-    }
-    catch {
-        $errorMessage = "CSV format validation failed: $_"
-        Write-Error $errorMessage
-        Write-ToLog "ERROR: $errorMessage"
-        throw $errorMessage
-    }
-}
+
 function Initialize-Word {
     [CmdletBinding()]
     param()
@@ -317,140 +252,32 @@ function Test-FileExists {
     Write-ToLog $message
 }
 
-function Test-AttachmentPath {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory=$false)]
-        [string]$AttachmentPath
-    )
-    
-    if ([string]::IsNullOrEmpty($AttachmentPath)) {
-        $message = "No attachment specified"
-        Write-Verbose $message
-        Write-ToLog $message
-        return $false
-    }
-    
-    try {
-        if (-not (Test-Path $AttachmentPath)) {
-            $errorMessage = "Attachment file not found: $AttachmentPath"
-            Write-Error $errorMessage
-            Write-ToLog "ERROR: $errorMessage"
-            throw $errorMessage
-        }
-        
-        # Check if it's a file (not a directory)
-        $item = Get-Item $AttachmentPath
-        if ($item.PSIsContainer) {
-            $errorMessage = "Attachment path is a directory, not a file: $AttachmentPath"
-            Write-Error $errorMessage
-            Write-ToLog "ERROR: $errorMessage"
-            throw $errorMessage
-        }
-        
-        # Get file size and warn if it's large
-        $fileSizeMB = [math]::Round($item.Length / 1MB, 2)
-        if ($fileSizeMB -gt 10) {
-            $warningMessage = "Attachment file is large ($fileSizeMB MB). This may cause delivery issues."
-            Write-Warning $warningMessage
-            Write-ToLog "WARNING: $warningMessage"
-        }
-        
-        $message = "Attachment validation passed: $AttachmentPath ($fileSizeMB MB)"
-        Write-Verbose $message
-        Write-ToLog $message
-        return $true
-    }
-    catch {
-        $errorMessage = "Attachment validation failed: $_"
-        Write-Error $errorMessage
-        Write-ToLog "ERROR: $errorMessage"
-        throw $errorMessage
-    }
-}
-
-function Test-FromAddress {
+function Test-CSVFormat {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)]
-        [System.__ComObject]$OutlookInstance,
-        
-        [Parameter(Mandatory=$false)]
-        [string]$FromAddress
+        [string]$CSVPath
     )
     
-    if ([string]::IsNullOrEmpty($FromAddress)) {
-        $message = "No custom FromAddress specified, using default Outlook account"
-        Write-Verbose $message
-        Write-ToLog $message
-        return @{
-            IsValid = $true
-            Account = $null
-            Address = $null
-            IsAlias = $false
-        }
-    }
-    
     try {
-        $message = "Validating FromAddress: $FromAddress"
-        Write-Verbose $message
-        Write-ToLog $message
+        $csv = Import-Csv $CSVPath
+        $requiredColumns = @('Name', 'GivenName', 'Surname', 'Email')
         
-        $namespace = $OutlookInstance.GetNameSpace("MAPI")
-        $accounts = $namespace.Accounts
-        
-        # First check if it's a direct account match
-        $foundAccount = $null
-        for ($i = 1; $i -le $accounts.Count; $i++) {
-            $account = $accounts.Item($i)
-            if ($account.SmtpAddress -eq $FromAddress) {
-                $foundAccount = $account
-                break
+        foreach ($column in $requiredColumns) {
+            if ($csv[0].PSObject.Properties.Name -notcontains $column) {
+                throw "CSV file is missing required column: $column"
             }
         }
         
-        if ($foundAccount) {
-            $message = "FromAddress validation passed (direct account): $FromAddress"
-            Write-Verbose $message
-            Write-ToLog $message
-            return @{
-                IsValid = $true
-                Account = $foundAccount
-                Address = $FromAddress
-                IsAlias = $false
-            }
-        }
-        
-        # If not found as direct account, assume it's an alias
-        # For aliases, we'll use the primary account but set the SentOnBehalfOfName
-        $primaryAccount = $accounts.Item(1)  # Use first/primary account
-        
-        $message = "FromAddress '$FromAddress' appears to be an alias. Will use primary account '$($primaryAccount.SmtpAddress)' with SentOnBehalfOfName"
+        $message = "CSV format validation passed"
         Write-Verbose $message
         Write-ToLog $message
-        
-        return @{
-            IsValid = $true
-            Account = $primaryAccount
-            Address = $FromAddress
-            IsAlias = $true
-        }
     }
     catch {
-        $errorMessage = "Failed to validate FromAddress: $_"
-        Write-Warning $errorMessage
-        Write-ToLog "WARNING: $errorMessage"
-        return @{
-            IsValid = $false
-            Account = $null
-            Address = $null
-            IsAlias = $false
-        }
-    }
-    finally {
-        if ($namespace) {
-            [System.Runtime.Interopservices.Marshal]::ReleaseComObject($namespace) | Out-Null
-        }
+        $errorMessage = "CSV format validation failed: $_"
+        Write-Error $errorMessage
+        Write-ToLog "ERROR: $errorMessage"
+        throw $errorMessage
     }
 }
 
@@ -586,13 +413,7 @@ function Send-PersonalizedEmail {
         [string]$Body,
         
         [Parameter(Mandatory=$true)]
-        [PSCustomObject]$RecipientData,
-        
-        [Parameter(Mandatory=$false)]
-        [hashtable]$FromAddressInfo = $null,
-        
-        [Parameter(Mandatory=$false)]
-        [string]$AttachmentPath = $null
+        [PSCustomObject]$RecipientData
     )
     
     $mail = $null
@@ -604,38 +425,6 @@ function Send-PersonalizedEmail {
         
         $mail = $OutlookInstance.CreateItem(0)
         Write-ToLog "Created mail item"
-        
-        # Handle From address configuration
-        if ($FromAddressInfo -and $FromAddressInfo.IsValid) {
-            if ($FromAddressInfo.IsAlias) {
-                # For aliases, use SentOnBehalfOfName and set the From property
-                if ($FromAddressInfo.Account) {
-                    $mail.SendUsingAccount = $FromAddressInfo.Account
-                }
-                
-                # Set the From property to the alias address
-                $mail.SentOnBehalfOfName = $FromAddressInfo.Address
-                
-                # Alternative approach: directly set From property (works in some Exchange configurations)
-                try {
-                    $mail.From = $FromAddressInfo.Address
-                }
-                catch {
-                    Write-ToLog "Note: Could not set From property directly: $_"
-                }
-                
-                $message = "Set From address to alias: $($FromAddressInfo.Address)"
-                Write-Verbose $message
-                Write-ToLog $message
-            }
-            else {
-                # For direct accounts, use SendUsingAccount
-                $mail.SendUsingAccount = $FromAddressInfo.Account
-                $message = "Set From address to account: $($FromAddressInfo.Address)"
-                Write-Verbose $message
-                Write-ToLog $message
-            }
-        }
         
         # Basic properties
         $mail.Subject = $Subject
@@ -670,39 +459,10 @@ $personalizedBody
         
         $mail.HTMLBody = $cleanBody
         
-        # Add attachment if specified
-        if (-not [string]::IsNullOrEmpty($AttachmentPath)) {
-            try {
-                Write-ToLog "Adding attachment: $AttachmentPath"
-                $attachment = $mail.Attachments.Add($AttachmentPath)
-                $attachmentName = [System.IO.Path]::GetFileName($AttachmentPath)
-                $message = "Attachment added successfully: $attachmentName"
-                Write-Verbose $message
-                Write-ToLog $message
-            }
-            catch {
-                $errorMessage = "Failed to add attachment '$AttachmentPath': $_"
-                Write-Warning $errorMessage
-                Write-ToLog "WARNING: $errorMessage"
-                # Don't throw - continue sending email without attachment
-            }
-        }
-        
         Write-ToLog "Sending email..."
         $mail.Send()
         
-        $fromInfo = if ($FromAddressInfo -and $FromAddressInfo.IsValid) { 
-            $aliasInfo = if ($FromAddressInfo.IsAlias) { " (alias)" } else { "" }
-            " from $($FromAddressInfo.Address)$aliasInfo" 
-        } else { 
-            "" 
-        }
-        $attachmentInfo = if (-not [string]::IsNullOrEmpty($AttachmentPath)) { 
-            " with attachment" 
-        } else { 
-            "" 
-        }
-        $message = "Email sent successfully to $To$fromInfo$attachmentInfo"
+        $message = "Email sent successfully to $To"
         Write-Host $message -ForegroundColor Green
         Write-ToLog $message
     }
@@ -728,9 +488,7 @@ $personalizedBody
 try {
     # Create new log file for this run
     New-Log
-    $fromAddressLog = if ($FromAddress) { ", FromAddress=$FromAddress" } else { "" }
-    $attachmentLog = if ($AttachmentPath) { ", AttachmentPath=$AttachmentPath" } else { "" }
-    Write-ToLog "Script started with parameters: InputTemplate=$InputTemplate, EmailSubject=$EmailSubject, InputCSV=$InputCSV$fromAddressLog$attachmentLog"
+    Write-ToLog "Script started with parameters: InputTemplate=$InputTemplate, EmailSubject=$EmailSubject, InputCSV=$InputCSV"
     
     # Validate input files
     Test-FileExists -FilePath $InputTemplate
@@ -739,15 +497,9 @@ try {
     # Validate CSV format
     Test-CSVFormat -CSVPath $InputCSV
     
-    # Validate attachment if specified
-    $hasAttachment = Test-AttachmentPath -AttachmentPath $AttachmentPath
-    
     # Initialize COM objects
     $word = Initialize-Word
     $outlook = Initialize-Outlook
-    
-    # Validate and get FromAddress account if specified
-    $fromAddressInfo = Test-FromAddress -OutlookInstance $outlook -FromAddress $FromAddress
     
     # Get template content
     $templateContent = Get-TemplateContent -WordInstance $word -TemplatePath $InputTemplate
@@ -769,8 +521,8 @@ try {
         Write-Progress -Activity "Sending Emails" -Status $progressMessage -PercentComplete (($currentEmail / $totalEmails) * 100)
         Write-ToLog $progressMessage
         
-        # Send email with recipient data and custom from address info
-        Send-PersonalizedEmail -OutlookInstance $outlook -Subject $EmailSubject -To $recipient.Email -Body $templateContent -RecipientData $recipient -FromAddressInfo $fromAddressInfo -AttachmentPath $AttachmentPath
+        # Send email with recipient data
+        Send-PersonalizedEmail -OutlookInstance $outlook -Subject $EmailSubject -To $recipient.Email -Body $templateContent -RecipientData $recipient
         
         # Small delay between emails to prevent throttling
         Start-Sleep -Milliseconds 500
