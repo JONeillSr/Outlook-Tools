@@ -8,7 +8,7 @@
     and sends individual emails to each recipient listed in a CSV file.
 
     The script maintains formatting from the original Word document, supports embedded images,
-    and provides detailed logging of all operations.
+    allows attachments, and provides detailed logging of all operations.
 
 .PARAMETER InputTemplate
     Path to the Word document (.docx) that serves as the email template.
@@ -36,7 +36,7 @@
     Sends personalized emails to all recipients in Input.csv using the template from Sample.docx with the default sender address.
 
 .EXAMPLE
-    .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv" -FromAddress "JONeillSr@azureinnovators.com"
+    .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv" -FromAddress "example@somedomainsomewhere.com"
     Sends emails from the specified address instead of the default Outlook account.
 
 .EXAMPLE
@@ -44,19 +44,31 @@
     Sends emails with the specified PDF file attached to each email.
 
 .EXAMPLE
-    .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv" -FromAddress "JONeillSr@azureinnovators.com" -AttachmentPath "C:\Temp\Brochure.pdf"
+    .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv" -FromAddress "example@somedomainsomewhere.com" -AttachmentPath "C:\Temp\Brochure.pdf"
     Sends emails from a custom address with an attachment included.
 
 .EXAMPLE
     .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv" -Verbose
     Sends emails with detailed verbose output showing each step of the process and logs all operations.
 
+.EXAMPLE
+    .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv" -FromAddress "example@somedomainsomewhere.com"
+    Sends an email with a custom From address.
+    
+.EXAMPLE
+    .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv" -FromAddress "example@somedomainsomewhere.com" -AttachmentPath "C:\Temp\Brochure.pdf"
+    Sends an email with a custom From address and includes an attachment.
+
+.EXAMPLE
+    .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv" -AttachmentPath "C:\Temp\Brochure.pdf"
+    Sends an email with the default From address and includes an attachment.
+
 .NOTES
     Author: John A. O'Neill Sr.
     Date: 01/08/2025
-    Version: 1.2
-    Change Date: 01/08/2025
-    Change Purpose: Added FromAddress parameter to specify custom sender address
+    Version: 1.3
+    Change Date: 05/23/2025
+    Change Purpose: Added ability to send emails from a custom address and added attachment functionality.
 
     Prerequisites:
     - Microsoft Office 2016 or later
@@ -77,6 +89,7 @@
     - The FromAddress parameter must be an email address configured in your Outlook
     - If the address is not configured in Outlook, the email will fail to send
     - If FromAddress is not specified, the default Outlook account will be used
+    - If the FromAddress is an alias, and the alias doesn't exist or Exhange isn't configured to allow send from alias, the primary account will be used to send the email
 
     Attachment Notes:
     - The AttachmentPath parameter must point to an existing file
