@@ -8,7 +8,8 @@
     and sends individual emails to each recipient listed in a CSV file.
 
     The script maintains formatting from the original Word document, supports embedded images,
-    allows attachments, and provides detailed logging of all operations.
+    allows attachments, provides detailed logging of all operations, and includes options
+    for setting email importance, delivery receipts, and read receipts.
 
 .PARAMETER InputTemplate
     Path to the Word document (.docx) that serves as the email template.
@@ -30,6 +31,15 @@
 .PARAMETER AttachmentPath
     Optional. Path to a file that will be attached to each email sent.
     If specified, the file must exist and will be attached to every email.
+
+.PARAMETER HighImportance
+    Optional. Sets the email importance to high priority.
+
+.PARAMETER DeliveryReceipt
+    Optional. Requests delivery receipts for all emails sent.
+
+.PARAMETER ReadReceipt
+    Optional. Requests read receipts for all emails sent.
 
 .EXAMPLE
     .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv"
@@ -63,12 +73,20 @@
     .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Hello in 2025!" -InputCSV "C:\Temp\Input.csv" -AttachmentPath "C:\Temp\Brochure.pdf"
     Sends an email with the default From address and includes an attachment.
 
+.EXAMPLE
+    .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Quarterly Report" -InputCSV "C:\Temp\Input.csv" -HighImportance -DeliveryReceipt
+    Sends high importance emails with delivery receipt requests.
+
+.EXAMPLE
+    .\SendEmailFromOutlook.ps1 -InputTemplate "C:\Temp\Sample.docx" -EmailSubject "Training Materials" -InputCSV "C:\Temp\Input.csv" -ReadReceipt -AttachmentPath "C:\Temp\Training.pdf"
+    Sends emails with read receipt requests and includes a training PDF attachment.
+
 .NOTES
     Author: John A. O'Neill Sr.
     Date: 01/08/2025
-    Version: 1.3
-    Change Date: 05/23/2025
-    Change Purpose: Added ability to send emails from a custom address and added attachment functionality.
+    Version: 1.4
+    Change Date: 05/27/2025
+    Change Purpose: Added ability to set importance, delivery, and read receipt options.
 
     Prerequisites:
     - Microsoft Office 2016 or later
@@ -125,7 +143,19 @@ param(
     
     [Parameter(Mandatory=$false,
     HelpMessage="Path to file that will be attached to each email")]
-    [string]$AttachmentPath = $null
+    [string]$AttachmentPath = $null,
+
+    [Parameter(Mandatory=$false,
+    HelpMessage="Set email importance to high")]
+    [switch]$HighImportance,
+    
+    [Parameter(Mandatory=$false,
+    HelpMessage="Request delivery receipt for emails")]
+    [switch]$DeliveryReceipt,
+    
+    [Parameter(Mandatory=$false,
+    HelpMessage="Request read receipt for emails")]
+    [switch]$ReadReceipt
 )
 
 # Initial variables defined at script scope
@@ -605,7 +635,16 @@ function Send-PersonalizedEmail {
         [hashtable]$FromAddressInfo = $null,
         
         [Parameter(Mandatory=$false)]
-        [string]$AttachmentPath = $null
+        [string]$AttachmentPath = $null,
+
+        [Parameter(Mandatory=$false)]
+        [bool]$SetHighImportance = $false,
+        
+        [Parameter(Mandatory=$false)]
+        [bool]$RequestDeliveryReceipt = $false,
+        
+        [Parameter(Mandatory=$false)]
+        [bool]$RequestReadReceipt = $false
     )
     
     $mail = $null
@@ -653,6 +692,45 @@ function Send-PersonalizedEmail {
         # Basic properties
         $mail.Subject = $Subject
         $mail.To = $To
+        
+        if ($SetHighImportance) {
+            $mail.Importance = 2  # olImportanceHigh (0=Low, 1=Normal, 2=High)
+            Write-ToLog "Set email importance to High"
+        }
+        
+        if ($RequestDeliveryReceipt) {
+            try {
+                # For delivery receipts, we need to set the OriginatorDeliveryReportRequested property
+                # This is done through MAPI properties
+                $mail.OriginatorDeliveryReportRequested = $true
+                Write-ToLog "Requested delivery receipt"
+            }
+            catch {
+                try {
+                    # Alternative method using PropertyAccessor for delivery receipt
+                    $propertyAccessor = $mail.PropertyAccessor
+                    # MAPI property for delivery receipt request
+                    $deliveryReceiptProperty = "http://schemas.microsoft.com/mapi/proptag/0x23000003"
+                    $propertyAccessor.SetProperty($deliveryReceiptProperty, $true)
+                    Write-ToLog "Requested delivery receipt (via PropertyAccessor)"
+                }
+                catch {
+                    Write-ToLog "WARNING: Could not set delivery receipt request: $_"
+                    Write-Warning "Delivery receipt request not supported in this Outlook configuration"
+                }
+            }
+        }
+        
+        if ($RequestReadReceipt) {
+            try {
+                $mail.ReadReceiptRequested = $true
+                Write-ToLog "Requested read receipt"
+            }
+            catch {
+                Write-ToLog "WARNING: Could not set read receipt request: $_"
+                Write-Warning "Read receipt request not supported in this Outlook configuration"
+            }
+        }
         
         # Ensure proper HTML formatting
         Write-ToLog "Setting email format and content..."
@@ -715,7 +793,15 @@ $personalizedBody
         } else { 
             "" 
         }
-        $message = "Email sent successfully to $To$fromInfo$attachmentInfo"
+
+        # Build options info string
+        $optionsInfo = @()
+        if ($SetHighImportance) { $optionsInfo += "high importance" }
+        if ($RequestDeliveryReceipt) { $optionsInfo += "delivery receipt" }
+        if ($RequestReadReceipt) { $optionsInfo += "read receipt" }
+        $optionsString = if ($optionsInfo.Count -gt 0) { " (" + ($optionsInfo -join ", ") + ")" } else { "" }
+        
+        $message = "Email sent successfully to $To$fromInfo$attachmentInfo$optionsString"
         Write-Host $message -ForegroundColor Green
         Write-ToLog $message
     }
@@ -739,12 +825,18 @@ $personalizedBody
 
 # Main script execution
 try {
-    # Create new log file for this run
+    # Create a new log file
     New-Log
     $fromAddressLog = if ($FromAddress) { ", FromAddress=$FromAddress" } else { "" }
     $attachmentLog = if ($AttachmentPath) { ", AttachmentPath=$AttachmentPath" } else { "" }
-    Write-ToLog "Script started with parameters: InputTemplate=$InputTemplate, EmailSubject=$EmailSubject, InputCSV=$InputCSV$fromAddressLog$attachmentLog"
-    
+    $optionsLog = @()
+    if ($HighImportance) { $optionsLog += "HighImportance" }
+    if ($DeliveryReceipt) { $optionsLog += "DeliveryReceipt" }
+    if ($ReadReceipt) { $optionsLog += "ReadReceipt" }
+    $optionsString = if ($optionsLog.Count -gt 0) { ", Options=" + ($optionsLog -join ",") } else { "" }
+
+    Write-ToLog "Script started with parameters: InputTemplate=$InputTemplate, EmailSubject=$EmailSubject, InputCSV=$InputCSV$fromAddressLog$attachmentLog$optionsString"
+
     # Validate input files
     Test-FileExists -FilePath $InputTemplate
     Test-FileExists -FilePath $InputCSV
@@ -782,8 +874,8 @@ try {
         Write-Progress -Activity "Sending Emails" -Status $progressMessage -PercentComplete (($currentEmail / $totalEmails) * 100)
         Write-ToLog $progressMessage
         
-        # Send email with recipient data and custom from address info
-        Send-PersonalizedEmail -OutlookInstance $outlook -Subject $EmailSubject -To $recipient.Email -Body $templateContent -RecipientData $recipient -FromAddressInfo $fromAddressInfo -AttachmentPath $AttachmentPath
+        # Send email with recipient data and all options
+        Send-PersonalizedEmail -OutlookInstance $outlook -Subject $EmailSubject -To $recipient.Email -Body $templateContent -RecipientData $recipient -FromAddressInfo $fromAddressInfo -AttachmentPath $AttachmentPath -SetHighImportance $HighImportance -RequestDeliveryReceipt $DeliveryReceipt -RequestReadReceipt $ReadReceipt
         
         # Small delay between emails to prevent throttling
         Start-Sleep -Milliseconds 500
