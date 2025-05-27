@@ -689,9 +689,54 @@ function Send-PersonalizedEmail {
             }
         }
         
+        # Validate email address format first
+        if (-not (Test-EmailAddress -EmailAddress $To)) {
+            throw "Invalid email address format: $To"
+        }
+        
+        $message = "Creating email for recipient: $To"
+        Write-Verbose $message
+        Write-ToLog $message
+        
+        $mail = $OutlookInstance.CreateItem(0)
+        Write-ToLog "Created mail item"
+
         # Basic properties
         $mail.Subject = $Subject
-        $mail.To = $To
+        
+        # Try different methods to set the recipient
+        try {
+            # Method 1: Direct assignment (most common)
+            $mail.To = $To
+            Write-ToLog "Set recipient using direct To assignment"
+        }
+        catch {
+            try {
+                # Method 2: Use Recipients.Add (more explicit)
+                Write-ToLog "Direct To assignment failed, trying Recipients.Add method"
+                $recipient = $mail.Recipients.Add($To)
+                $recipient.Type = 1  # olTo = 1
+                $resolveResult = $mail.Recipients.ResolveAll()
+                if (-not $resolveResult) {
+                    Write-ToLog "WARNING: Could not resolve recipient address: $To"
+                    # Continue anyway - sometimes it still works
+                }
+                Write-ToLog "Set recipient using Recipients.Add method"
+            }
+            catch {
+                # Method 3: Try with display name format
+                Write-ToLog "Recipients.Add failed, trying with display name format"
+                $displayFormat = "$($RecipientData.Name) <$To>"
+                try {
+                    $mail.To = $displayFormat
+                    Write-ToLog "Set recipient using display name format: $displayFormat"
+                }
+                catch {
+                    # If all methods fail, throw the original error
+                    throw "Could not set recipient address '$To'. This may be due to Outlook not recognizing the address format or Exchange server restrictions."
+                }
+            }
+        }
         
         if ($SetHighImportance) {
             $mail.Importance = 2  # olImportanceHigh (0=Low, 1=Normal, 2=High)
@@ -780,7 +825,27 @@ $personalizedBody
         }
         
         Write-ToLog "Sending email..."
-        $mail.Send()
+        
+        # Try to send the email with additional error handling
+        try {
+            $mail.Send()
+        }
+        catch {
+            # If send fails due to unresolved names, try to provide more specific guidance
+            if ($_.Exception.Message -like "*does not recognize one or more names*") {
+                $errorMsg = "Outlook could not resolve the email address '$To'. This could be due to:"
+                $errorMsg += "`n- The email address is not in your organization's Global Address List"
+                $errorMsg += "`n- Your Outlook is configured to only allow internal addresses"
+                $errorMsg += "`n- The email address has formatting issues"
+                $errorMsg += "`n- Exchange server security policies are blocking external addresses"
+                Write-ToLog "SPECIFIC ERROR: $errorMsg"
+                throw $errorMsg
+            }
+            else {
+                # Re-throw other send errors
+                throw
+            }
+        }
         
         $fromInfo = if ($FromAddressInfo -and $FromAddressInfo.IsValid) { 
             $aliasInfo = if ($FromAddressInfo.IsAlias) { " (alias)" } else { "" }
@@ -823,6 +888,30 @@ $personalizedBody
     }
 }
 
+function Test-EmailAddress {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$EmailAddress
+    )
+    
+    try {
+        # Basic email format validation using .NET
+        $emailRegex = '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if ($EmailAddress -notmatch $emailRegex) {
+            Write-ToLog "Email format validation failed for: $EmailAddress"
+            return $false
+        }
+        
+        Write-ToLog "Email format validation passed for: $EmailAddress"
+        return $true
+    }
+    catch {
+        Write-ToLog "Email validation error for $EmailAddress : $_"
+        return $false
+    }
+}
+
 # Main script execution
 try {
     # Create a new log file
@@ -857,32 +946,80 @@ try {
     # Get template content
     $templateContent = Get-TemplateContent -WordInstance $word -TemplatePath $InputTemplate
     
-    # Import CSV
+    # Import CSV and perform email validation
     $message = "Importing CSV file: $InputCSV"
     Write-Verbose $message
     Write-ToLog $message
     $recipients = Import-Csv $InputCSV
     Write-ToLog "Found $($recipients.Count) recipients in CSV file"
     
-    # Process each recipient
-    $totalEmails = $recipients.Count
-    $currentEmail = 0
+    # Pre-validate email addresses and report issues
+    $validRecipients = @()
+    $invalidRecipients = @()
     
     foreach ($recipient in $recipients) {
+        if (Test-EmailAddress -EmailAddress $recipient.Email) {
+            $validRecipients += $recipient
+        }
+        else {
+            $invalidRecipients += $recipient
+            Write-Warning "Invalid email address format for $($recipient.Name): $($recipient.Email)"
+            Write-ToLog "WARNING: Invalid email address format for $($recipient.Name): $($recipient.Email)"
+        }
+    }
+    
+    if ($invalidRecipients.Count -gt 0) {
+        Write-Host "`nFound $($invalidRecipients.Count) recipients with invalid email addresses:" -ForegroundColor Yellow
+        foreach ($invalid in $invalidRecipients) {
+            Write-Host "  - $($invalid.Name): $($invalid.Email)" -ForegroundColor Yellow
+        }
+        Write-Host "These recipients will be skipped.`n" -ForegroundColor Yellow
+    }
+    
+    if ($validRecipients.Count -eq 0) {
+        throw "No valid email addresses found in CSV file"
+    }
+    
+    Write-Host "Processing $($validRecipients.Count) valid recipients" -ForegroundColor Green
+    Write-ToLog "Processing $($validRecipients.Count) valid recipients (skipped $($invalidRecipients.Count) invalid)"
+    
+    # Process each valid recipient
+    $totalEmails = $validRecipients.Count
+    $currentEmail = 0
+    $successCount = 0
+    $failureCount = 0
+    
+    foreach ($recipient in $validRecipients) {
         $currentEmail++
         $progressMessage = "Processing email $currentEmail of $totalEmails"
         Write-Progress -Activity "Sending Emails" -Status $progressMessage -PercentComplete (($currentEmail / $totalEmails) * 100)
         Write-ToLog $progressMessage
         
-        # Send email with recipient data and all options
-        Send-PersonalizedEmail -OutlookInstance $outlook -Subject $EmailSubject -To $recipient.Email -Body $templateContent -RecipientData $recipient -FromAddressInfo $fromAddressInfo -AttachmentPath $AttachmentPath -SetHighImportance $HighImportance -RequestDeliveryReceipt $DeliveryReceipt -RequestReadReceipt $ReadReceipt
+        try {
+            # Send email with recipient data and all options
+            Send-PersonalizedEmail -OutlookInstance $outlook -Subject $EmailSubject -To $recipient.Email -Body $templateContent -RecipientData $recipient -FromAddressInfo $fromAddressInfo -AttachmentPath $AttachmentPath -SetHighImportance $HighImportance -RequestDeliveryReceipt $DeliveryReceipt -RequestReadReceipt $ReadReceipt
+            $successCount++
+        }
+        catch {
+            $failureCount++
+            Write-Warning "Failed to send email to $($recipient.Email): $_"
+            Write-ToLog "ERROR: Failed to send email to $($recipient.Email): $_"
+        }
         
         # Small delay between emails to prevent throttling
         Start-Sleep -Milliseconds 500
     }
     
-    $message = "Email sending process completed!"
-    Write-Host "`n$message" -ForegroundColor Green
+    # Final summary
+    Write-Host "`n=== EMAIL SENDING SUMMARY ===" -ForegroundColor Cyan
+    Write-Host "Total valid recipients: $totalEmails" -ForegroundColor White
+    Write-Host "Successfully sent: $successCount" -ForegroundColor Green
+    Write-Host "Failed to send: $failureCount" -ForegroundColor Red
+    if ($invalidRecipients.Count -gt 0) {
+        Write-Host "Invalid email addresses skipped: $($invalidRecipients.Count)" -ForegroundColor Yellow
+    }
+    
+    $message = "Email sending process completed! Success: $successCount, Failures: $failureCount, Invalid: $($invalidRecipients.Count)"
     Write-ToLog $message
 }
 catch {
